@@ -1,0 +1,6 @@
+{
+  "name": "PayPal Payments Worker",
+  "description": "Production-ready Cloudflare Worker serving a secure PayPal payment landing page for Energize Cult Cafe Inc. with security headers, health checks, and Wrangler deployment setup.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
