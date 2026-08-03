@@ -1,0 +1,190 @@
+name: Deploy Cloudflare Worker
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  lint-and-build:
+    name: Lint & Verify Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: 'npm'
+
+      - name: Environment Diagnostics & Pre-flight Check
+        run: |
+          echo "=== PRE-FLIGHT DIAGNOSTICS ==="
+          echo "[Node Version]"
+          node -v
+          echo "[NPM Version]"
+          npm -v
+          echo "[Wrangler Version]"
+          npx wrangler --version
+          echo "[Current Working Directory]"
+          pwd
+          echo "[Directory Listing]"
+          ls -la
+          echo "[package.json Contents]"
+          cat package.json
+          echo "[NPM Config List]"
+          npm config list
+
+      - name: Install dependencies
+        run: |
+          echo "=== DEPENDENCY INSTALLATION ==="
+          npm ci || { echo "❌ ERROR: Dependency installation failed"; exit 1; }
+
+      - name: Run Typecheck / Lint
+        run: |
+          echo "=== TYPECHECK & LINTING ==="
+          npm run lint || { echo "❌ ERROR: Typecheck/lint failed"; exit 1; }
+
+      - name: Build project (Verbose)
+        run: |
+          echo "=== BUILDING & BUNDLING PROJECT ==="
+          npm run build --verbose || { echo "❌ ERROR: Build/bundling step failed"; exit 1; }
+
+  deploy-production:
+    name: Deploy to Production
+    needs: lint-and-build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: 'npm'
+
+      - name: Environment Diagnostics & Pre-flight Check
+        run: |
+          echo "=== PRE-FLIGHT DIAGNOSTICS ==="
+          echo "[Node Version]"
+          node -v
+          echo "[NPM Version]"
+          npm -v
+          echo "[Wrangler Version]"
+          npx wrangler --version
+          echo "[Current Working Directory]"
+          pwd
+          echo "[Directory Listing]"
+          ls -la
+          echo "[package.json Contents]"
+          cat package.json
+          echo "[NPM Config List]"
+          npm config list
+
+      - name: Install dependencies
+        run: |
+          echo "=== DEPENDENCY INSTALLATION ==="
+          npm ci || { echo "❌ ERROR: Dependency installation failed"; exit 1; }
+
+      - name: Wrangler Authentication & Status Check
+        run: |
+          echo "=== WRANGLER AUTHENTICATION CHECK ==="
+          npx wrangler whoami || echo "⚠️ Warning: wrangler whoami check failed or token scope limited"
+          npx wrangler deployments list --env production || echo "⚠️ Warning: wrangler deployments list failed"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Deploy Worker to Cloudflare Production
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy --env production
+        env:
+          PAYPAL_CLIENT_ID: ${{ secrets.PAYPAL_CLIENT_ID }}
+          PAYPAL_CLIENT_SECRET: ${{ secrets.PAYPAL_CLIENT_SECRET }}
+          PAYPAL_MERCHANT_ID: ${{ secrets.PAYPAL_MERCHANT_ID }}
+
+      - name: Diagnostic Fallback on Production Deployment Failure
+        if: failure()
+        run: |
+          echo "❌ PRODUCTION DEPLOYMENT FAILED - RUNNING DIAGNOSTICS"
+          npx wrangler whoami || true
+          npx wrangler deployments list --env production || true
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+  deploy-preview:
+    name: Deploy to Preview Environment
+    needs: lint-and-build
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: 'npm'
+
+      - name: Environment Diagnostics & Pre-flight Check
+        run: |
+          echo "=== PRE-FLIGHT DIAGNOSTICS ==="
+          echo "[Node Version]"
+          node -v
+          echo "[NPM Version]"
+          npm -v
+          echo "[Wrangler Version]"
+          npx wrangler --version
+          echo "[Current Working Directory]"
+          pwd
+          echo "[Directory Listing]"
+          ls -la
+          echo "[package.json Contents]"
+          cat package.json
+          echo "[NPM Config List]"
+          npm config list
+
+      - name: Install dependencies
+        run: |
+          echo "=== DEPENDENCY INSTALLATION ==="
+          npm ci || { echo "❌ ERROR: Dependency installation failed"; exit 1; }
+
+      - name: Wrangler Authentication & Status Check
+        run: |
+          echo "=== WRANGLER AUTHENTICATION CHECK ==="
+          npx wrangler whoami || echo "⚠️ Warning: wrangler whoami check failed or token scope limited"
+          npx wrangler deployments list --env preview || echo "⚠️ Warning: wrangler deployments list failed"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Deploy Worker to Cloudflare Preview
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy --env preview
+        env:
+          PAYPAL_CLIENT_ID: ${{ secrets.PAYPAL_CLIENT_ID }}
+          PAYPAL_CLIENT_SECRET: ${{ secrets.PAYPAL_CLIENT_SECRET }}
+
+      - name: Diagnostic Fallback on Preview Deployment Failure
+        if: failure()
+        run: |
+          echo "❌ PREVIEW DEPLOYMENT FAILED - RUNNING DIAGNOSTICS"
+          npx wrangler whoami || true
+          npx wrangler deployments list --env preview || true
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
