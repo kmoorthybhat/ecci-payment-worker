@@ -18,7 +18,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 22
           cache: 'npm'
 
       - name: Environment Diagnostics & Pre-flight Check
@@ -48,6 +48,13 @@ jobs:
       echo "❌ ERROR: Dependency installation failed"
       exit 1
     fi
+
+- name: Setup Node.js
+  uses: actions/setup-node@v4
+  with:
+    node-version: 24
+    cache: 'npm'
+    cache-dependency-path: '**/package-lock.json'
 
       - name: Run Typecheck / Lint
         run: |
