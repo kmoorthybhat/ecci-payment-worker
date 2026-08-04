@@ -39,10 +39,15 @@ jobs:
           echo "[NPM Config List]"
           npm config list
 
-      - name: Install dependencies
-        run: |
-          echo "=== DEPENDENCY INSTALLATION ==="
-          npm ci || { echo "❌ ERROR: Dependency installation failed"; exit 1; }
+     - name: Install dependencies
+  run: |
+    echo "=== DEPENDENCY INSTALLATION ==="
+    npm cache clean --force
+    npm install --legacy-peer-deps
+    if [ $? -ne 0 ]; then
+      echo "❌ ERROR: Dependency installation failed"
+      exit 1
+    fi
 
       - name: Run Typecheck / Lint
         run: |
@@ -82,10 +87,15 @@ jobs:
           pwd
           echo "[Directory Listing]"
           ls -la
-          echo "[package.json Contents]"
-          cat package.json
-          echo "[NPM Config List]"
-          npm config list
+          - name: Install dependencies
+  run: |
+    echo "=== DEPENDENCY INSTALLATION ==="
+    npm cache clean --force
+    npm install --legacy-peer-deps
+    if [ $? -ne 0 ]; then
+      echo "❌ ERROR: Dependency installation failed"
+      exit 1
+    fi
 
       - name: Install dependencies
         run: |
@@ -145,10 +155,15 @@ jobs:
           echo "[NPM Version]"
           npm -v
           echo "[Wrangler Version]"
-          npx wrangler --version
-          echo "[Current Working Directory]"
-          pwd
-          echo "[Directory Listing]"
+          - name: Install dependencies
+  run: |
+    echo "=== DEPENDENCY INSTALLATION ==="
+    npm cache clean --force
+    npm install --legacy-peer-deps
+    if [ $? -ne 0 ]; then
+      echo "❌ ERROR: Dependency installation failed"
+      exit 1
+    fi
           ls -la
           echo "[package.json Contents]"
           cat package.json
